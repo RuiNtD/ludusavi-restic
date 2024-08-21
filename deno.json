@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "backup": "deno run -A src/backup.ts"
+  },
+  "imports": {
+    "@david/dax": "jsr:@david/dax@^0.41.0",
+    "@std/cli": "jsr:@std/cli@^1.0.3",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.0",
+    "@std/fmt": "jsr:@std/fmt@^1.0.0",
+    "zod": "npm:zod@^3.23.8"
+  }
+}
