@@ -68,7 +68,10 @@ if (values.fullBackup) {
   else {
     console.log("Backing up", dir);
     const args = [];
-    const tags = [Bun.env.RESTIC_TAGS || "", Bun.env.RESTIC_FULL_TAGS || ""]
+    const tags = [
+      Bun.env.RESTIC_TAGS || "",
+      Bun.env.RESTIC_FULL_BACKUP_TAGS ?? "Ludusavi",
+    ]
       .map((s) => s.trim())
       .filter(isTruthy);
     for (const tag of tags) args.push("--tag", tag);
