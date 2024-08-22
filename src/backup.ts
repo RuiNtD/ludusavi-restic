@@ -1,27 +1,22 @@
-import $ from "@david/dax";
-import "@std/dotenv/load";
-import { parseArgs } from "@std/cli/parse-args";
+import { $ } from "bun";
+import { parseArgs } from "util";
 import { BackupOutput, getLudusaviDir } from "./ludusavi.ts";
-import { format as formatBytes } from "@std/fmt/bytes";
+import prettyBytes from "pretty-bytes";
 import { isTruthy } from "./helper.ts";
+import dedent from "dedent";
+import chalk from "chalk";
 
-type Args = {
-  _: string[];
-  help: boolean;
-  fullBackup: boolean;
-};
-const args: Args = parseArgs(Deno.args, {
-  boolean: ["help", "fullBackup"],
-  string: "_",
-  collect: "_",
-  alias: {
-    help: "h",
-    fullBackup: "f",
+const { values, positionals } = parseArgs({
+  args: Bun.argv.slice(2),
+  options: {
+    help: { type: "boolean", short: "h" },
+    fullBackup: { type: "boolean", short: "f" },
   },
+  allowPositionals: true,
 });
 
-if (args.help) {
-  $.log($.dedent`
+if (values.help) {
+  console.log(dedent`
     Usage:
       $ ludusavi-restic [options] [Game...]
 
@@ -30,104 +25,92 @@ if (args.help) {
       -f, --fullBackup
         Do a full Ludusavi backup and back it up to Restic
   `);
-  Deno.exit();
+  process.exit();
 }
 
-if (!Deno.env.has("RESTIC_REPOSITORY")) {
-  $.logError("Environment not set up", "");
-  $.log("Copy .env.example to .env and edit it");
-  Deno.exit(1);
+if (!Bun.env.RESTIC_REPOSITORY) {
+  console.log(chalk.red("Environment not set up"));
+  console.log("Copy .env.example to .env and edit it");
+  process.exit(1);
 }
 
-if (!(await $.commandExists("ludusavi"))) {
-  $.logError("Could not find Ludusavi", "");
-  $.log("https://github.com/mtkennerly/ludusavi");
-  Deno.exit(1);
+if (!Bun.which("ludusavi")) {
+  console.log(chalk.red("Could not find Ludusavi"));
+  console.log("https://github.com/mtkennerly/ludusavi");
+  process.exit(1);
 }
-if (!(await $.commandExists("restic"))) {
-  $.logError("Could not find Restic", "");
-  $.log("https://restic.net/");
-  Deno.exit(1);
+if (!Bun.which("restic")) {
+  console.log(chalk.red("Could not find Restic"));
+  console.log("https://restic.net/");
+  process.exit(1);
 }
 
 let backupData: BackupOutput;
 try {
-  const retArgs = args._;
-  retArgs.push("--force", "--api");
-  if (!args.fullBackup) retArgs.push("--preview");
-
-  const ret = await $`ludusavi backup ${retArgs}`.json();
+  const args = [...positionals, "--force", "--api"];
+  if (values.fullBackup) console.log("Backing up with Ludusavi...");
+  else {
+    console.log("Scanning with Ludusavi...");
+    args.push("--preview");
+  }
+  // const ret = await $`ludusavi backup ${retArgs}`.json();
+  const proc = Bun.spawn(["ludusavi", "backup", ...args]);
+  const ret = await new Response(proc.stdout).json();
   backupData = BackupOutput.parse(ret);
 } catch (e) {
-  $.logLight(e);
-  Deno.exit(1);
+  console.log(chalk.gray(e));
+  process.exit(1);
 }
 
-if (args.fullBackup) {
+if (values.fullBackup) {
   const dir = await getLudusaviDir();
-  if (!dir) $.logWarn("Could not find Ludusavi directory", "");
+  if (!dir) console.log(chalk.yellow("Could not find Ludusavi directory"));
   else {
-    await $.progress({
-      prefix: "Backing up",
-      message: dir.toString(),
-    }).with(async () => {
-      const resticArgs = [];
-      const tags = [
-        Deno.env.get("RESTIC_TAGS") || "",
-        Deno.env.get("RESTIC_FULL_TAGS") || "",
-      ]
-        .map((s) => s.trim())
-        .filter(isTruthy);
-      for (const tag of tags) resticArgs.push("--tag", tag);
-      // if (rclone)
-      //   resticArgs.push(
-      //     "-o",
-      //     `rclone.program=${$.escapeArg(rclone.toString())}`
-      //   );
+    console.log("Backing up", dir);
+    const args = [];
+    const tags = [Bun.env.RESTIC_TAGS || "", Bun.env.RESTIC_FULL_TAGS || ""]
+      .map((s) => s.trim())
+      .filter(isTruthy);
+    for (const tag of tags) args.push("--tag", tag);
 
-      await $`restic backup ${dir} ${resticArgs}`;
-    });
-    $.logStep("Backed up", "Ludusavi directory");
+    await $`restic backup ${dir} ${args}`;
   }
 }
 
 const { overall } = backupData;
 const { processedGames, totalGames } = overall;
-const processedBytes = formatBytes(overall.processedBytes, { binary: true });
-const totalBytes = formatBytes(overall.totalBytes, { binary: true });
+const processedBytes = prettyBytes(overall.processedBytes, { binary: true });
+const totalBytes = prettyBytes(overall.totalBytes, { binary: true });
 
-const pb = $.progress({
-  prefix: "Backing up",
-  message: "on Restic",
-  length: processedGames,
-});
-await pb.with(async () => {
-  for (const [name, game] of Object.entries(backupData.games)) {
-    pb.message(name);
-    if (game.decision == "Processed") {
-      const files = Object.entries(game.files)
-        .filter(([_, data]) => !data.ignored)
-        .map(([file, _]) => file);
+console.log("Backing up with Restic...");
+let gameIndex = 0;
+for (const [name, game] of Object.entries(backupData.games)) {
+  if (game.decision == "Processed") {
+    gameIndex++;
+    console.log(chalk.gray(`[${gameIndex} / ${processedGames}]`), name);
 
-      if (files.length) {
-        const resticArgs = ["--quiet", "--files-from-raw", "-"];
-        const tags = [
-          name.replaceAll(",", "_"),
-          Deno.env.get("RESTIC_TAGS") || "",
-          Deno.env.get("RESTIC_GAME_TAGS") || "",
-        ]
-          .map((s) => s.trim())
-          .filter(isTruthy);
-        for (const tag of tags) resticArgs.push("--tag", tag);
+    const files = Object.entries(game.files)
+      .filter(([_, data]) => !data.ignored)
+      .map(([file, _]) => file);
 
-        const stdin = files.join("\0") + "\0";
-        await $`restic backup ${resticArgs}`.stdinText(stdin);
-      }
+    if (files.length) {
+      const args = ["--quiet", "--files-from-raw", "-"];
+      const tags = [
+        name.replaceAll(",", "_"),
+        Bun.env.RESTIC_TAGS || "",
+        Bun.env.RESTIC_GAME_TAGS || "",
+      ]
+        .map((s) => s.trim())
+        .filter(isTruthy);
+      for (const tag of tags) args.push("--tag", tag);
+
+      const stdin = new Response(files.join("\0") + "\0");
+      await $`restic backup ${args} < ${stdin}`;
     }
-    pb.increment();
   }
-});
+}
+console.log();
 
-$.logStep("Done!");
-$.logLight(`Games: ${processedGames} / ${totalGames}`);
-$.logLight(`Size: ${processedBytes} / ${totalBytes}`);
+console.log(chalk.green("Done!"));
+console.log(chalk.gray(`Games: ${processedGames} / ${totalGames}`));
+console.log(chalk.gray(`Size: ${processedBytes} / ${totalBytes}`));

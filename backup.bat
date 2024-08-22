@@ -1,1 +1,1 @@
-@deno task backup %*
+@bun start %*

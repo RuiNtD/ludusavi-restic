@@ -2,18 +2,25 @@
 
 ## Requirements
 
-- [Deno](https://deno.com/)
+- [Bun](https://bun.sh/)
 - [Ludusavi](https://github.com/mtkennerly/ludusavi)
 - [Restic](https://restic.net/)
 
 ## Usage
 
-1. Copy `.env.example` to `.env` and modify it.
-2. `backup`
+First, copy `.env.example` to `.env` and modify it.
 
-- `backup -f` to also perform a full Ludusavi backup and
-  back up the Ludusavi folder.
-- `backup [Game...]` to backup specific games.
+```sh
+# Backup all detected games with only Restic
+backup
+
+# Backup all detected games with both Ludusavi and Restic
+backup -f
+
+# Backup two games
+# Note the game names are case-sensitive
+backup "Minecraft: Java Edition" "Minecraft: Bedrock Edition"
+```
 
 ## Special Thanks
 

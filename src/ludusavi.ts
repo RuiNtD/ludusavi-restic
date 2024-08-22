@@ -1,5 +1,6 @@
-import $ from "@david/dax";
+import { $ } from "bun";
 import z from "zod";
+import * as path from "path";
 
 export const BackupOutput = z.object({
   overall: z.object({
@@ -33,5 +34,5 @@ export async function getLudusaviDir() {
   const apiRet = await $`ludusavi backups --api`.json();
   const backups = BackupsOutput.parse(apiRet);
   for (const game of Object.values(backups.games))
-    if (game.backupPath) return $.path(game.backupPath).parent();
+    if (game.backupPath) return path.dirname(game.backupPath);
 }
