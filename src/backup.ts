@@ -6,6 +6,9 @@ import { isTruthy } from "./helper.ts";
 import dedent from "dedent";
 import chalk from "chalk";
 
+const { log } = console;
+const { red, yellow, green, gray } = chalk;
+
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
   options: {
@@ -16,7 +19,7 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.help) {
-  console.log(dedent`
+  log(dedent`
     Usage:
       $ ludusavi-restic [options] [Game...]
 
@@ -29,29 +32,29 @@ if (values.help) {
 }
 
 if (!Bun.env.RESTIC_REPOSITORY) {
-  console.log(chalk.red("Environment not set up"));
-  console.log("Copy .env.example to .env and edit it");
+  log(red("Environment not set up"));
+  log("Copy .env.example to .env and edit it");
   process.exit(1);
 }
 
 if (!Bun.which("ludusavi")) {
-  console.log(chalk.red("Could not find Ludusavi"));
-  console.log("https://github.com/mtkennerly/ludusavi");
+  log(red("Could not find Ludusavi"));
+  log("https://github.com/mtkennerly/ludusavi");
   process.exit(1);
 }
 
 if (!Bun.which("restic")) {
-  console.log(chalk.red("Could not find Restic"));
-  console.log("https://restic.net/");
+  log(red("Could not find Restic"));
+  log("https://restic.net/");
   process.exit(1);
 }
 
 let backupData: BackupOutput;
 try {
   const args = [...positionals, "--force", "--api"];
-  if (values.fullBackup) console.log("Backing up with Ludusavi...");
+  if (values.fullBackup) log("Backing up with Ludusavi...");
   else {
-    console.log("Scanning with Ludusavi...");
+    log("Scanning with Ludusavi...");
     args.push("--preview");
   }
   // const ret = await $`ludusavi backup ${retArgs}`.json();
@@ -59,15 +62,15 @@ try {
   const ret = await new Response(proc.stdout).json();
   backupData = BackupOutput.parse(ret);
 } catch (e) {
-  console.log(chalk.gray(e));
+  log(gray(e));
   process.exit(1);
 }
 
 if (values.fullBackup) {
   const dir = await getLudusaviDir();
-  if (!dir) console.log(chalk.yellow("Could not find Ludusavi directory"));
+  if (!dir) log(yellow("Could not find Ludusavi directory"));
   else {
-    console.log("Backing up", dir);
+    log("Backing up", dir);
     const args = [];
     const tags = [
       Bun.env.RESTIC_TAGS || "",
@@ -86,12 +89,12 @@ const { processedGames, totalGames } = overall;
 const processedBytes = prettyBytes(overall.processedBytes, { binary: true });
 const totalBytes = prettyBytes(overall.totalBytes, { binary: true });
 
-console.log("Backing up with Restic...");
+log("Backing up with Restic...");
 let gameIndex = 0;
 for (const [name, game] of Object.entries(backupData.games)) {
   if (game.decision == "Processed") {
     gameIndex++;
-    console.log(chalk.gray(`[${gameIndex} / ${processedGames}]`), name);
+    log(gray(`[${gameIndex} / ${processedGames}]`), name);
 
     const files = Object.entries(game.files)
       .filter(([_, data]) => !data.ignored)
@@ -113,8 +116,8 @@ for (const [name, game] of Object.entries(backupData.games)) {
     }
   }
 }
-console.log();
+log();
 
-console.log(chalk.green("Done!"));
-console.log(chalk.gray(`Games: ${processedGames} / ${totalGames}`));
-console.log(chalk.gray(`Size: ${processedBytes} / ${totalBytes}`));
+log(green("Done!"));
+log(gray(`Games: ${processedGames} / ${totalGames}`));
+log(gray(`Size: ${processedBytes} / ${totalBytes}`));
