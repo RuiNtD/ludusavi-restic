@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { parseArgs } from "util";
 import { BackupOutput, getLudusaviDir } from "./ludusavi.ts";
 import prettyBytes from "pretty-bytes";
-import { isTruthy } from "./helper.ts";
+import { findEXE, isTruthy } from "./helper.ts";
 import dedent from "dedent";
 import chalk from "chalk";
 
@@ -34,15 +34,24 @@ if (!Bun.env.RESTIC_REPOSITORY) {
   process.exit(1);
 }
 
-if (!Bun.which("ludusavi")) {
+const ludusavi = findEXE("ludusavi", "LUDUSAVI_PATH");
+if (!ludusavi || !(await Bun.file(ludusavi).exists())) {
   console.log(chalk.red("Could not find Ludusavi"));
   console.log("https://github.com/mtkennerly/ludusavi");
   process.exit(1);
 }
-if (!Bun.which("restic")) {
+
+const restic = findEXE("restic", "RESTIC_PATH");
+if (!restic || !(await Bun.file(restic).exists())) {
   console.log(chalk.red("Could not find Restic"));
   console.log("https://restic.net/");
   process.exit(1);
+}
+
+const rclone = findEXE("rclone", "RCLONE_PATH");
+if (rclone && !(await Bun.file(rclone).exists())) {
+  console.log(chalk.yellow("Rclone path was provided, but could not be found"));
+  console.log("https://rclone.org/");
 }
 
 let backupData: BackupOutput;
@@ -54,7 +63,7 @@ try {
     args.push("--preview");
   }
   // const ret = await $`ludusavi backup ${retArgs}`.json();
-  const proc = Bun.spawn(["ludusavi", "backup", ...args]);
+  const proc = Bun.spawn([ludusavi, "backup", ...args]);
   const ret = await new Response(proc.stdout).json();
   backupData = BackupOutput.parse(ret);
 } catch (e) {
@@ -75,8 +84,9 @@ if (values.fullBackup) {
       .map((s) => s.trim())
       .filter(isTruthy);
     for (const tag of tags) args.push("--tag", tag);
+    if (rclone) args.push("-o", `rclone.program=${rclone}`);
 
-    await $`restic backup ${dir} ${args}`;
+    await $`${restic} backup ${dir} ${args}`;
   }
 }
 
@@ -106,9 +116,10 @@ for (const [name, game] of Object.entries(backupData.games)) {
         .map((s) => s.trim())
         .filter(isTruthy);
       for (const tag of tags) args.push("--tag", tag);
+      if (rclone) args.push("-o", `rclone.program=${rclone}`);
 
       const stdin = new Response(files.join("\0") + "\0");
-      await $`restic backup ${args} < ${stdin}`;
+      await $`${restic} backup ${args} < ${stdin}`;
     }
   }
 }
