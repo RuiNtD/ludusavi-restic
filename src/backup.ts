@@ -49,6 +49,17 @@ if (!Bun.which("restic")) {
   process.exit(1);
 }
 
+if (Bun.env.PRE_COMMAND) {
+  try {
+    log("Running pre command...");
+    await $`${Bun.env.PRE_COMMAND}`;
+    log();
+  } catch (e) {
+    log(red(e));
+    process.exit(1);
+  }
+}
+
 let backupData: BackupOutput;
 try {
   const args = [...positionals, "--force", "--api"];
@@ -129,3 +140,14 @@ log();
 log(green("Done!"));
 log(gray(`Games: ${processedGames} / ${totalGames}`));
 log(gray(`Size: ${processedBytes} / ${totalBytes}`));
+
+if (Bun.env.POST_COMMAND) {
+  try {
+    log();
+    log("Running post command...");
+    await $`${Bun.env.POST_COMMAND}`;
+  } catch (e) {
+    log(red(e));
+    process.exit(1);
+  }
+}
