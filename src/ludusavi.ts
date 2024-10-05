@@ -2,23 +2,28 @@ import { $ } from "bun";
 import z from "zod";
 import * as path from "path";
 
+const OperationStatus = z.object({
+  processedBytes: z.number(),
+  processedGames: z.number(),
+  totalBytes: z.number(),
+  totalGames: z.number(),
+});
+const OperationStepDecision = z.enum(["Processed", "Cancelled", "Ignored"]);
+const ScanChange = z.enum(["New", "Different", "Removed", "Same", "Unknown"]);
+
+const ApiFile = z.object({
+  bytes: z.number(),
+  change: ScanChange,
+  ignored: z.boolean().optional(),
+});
+const ApiGame = z.object({
+  decision: OperationStepDecision,
+  files: z.record(ApiFile),
+});
+
 export const BackupOutput = z.object({
-  overall: z.object({
-    totalGames: z.number(),
-    totalBytes: z.number(),
-    processedGames: z.number(),
-    processedBytes: z.number(),
-  }),
-  games: z.record(
-    z.object({
-      decision: z.enum(["Processed", "Cancelled", "Ignored"]),
-      files: z.record(
-        z.object({
-          ignored: z.boolean().optional(),
-        })
-      ),
-    })
-  ),
+  overall: OperationStatus,
+  games: z.record(ApiGame),
 });
 export type BackupOutput = z.infer<typeof BackupOutput>;
 

@@ -1,8 +1,7 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
 import { BackupOutput, getLudusaviDir } from "./ludusavi.ts";
-import prettyBytes from "pretty-bytes";
-import { isTruthy } from "./helper.ts";
+import { isTruthy, prettyBytes } from "./helper.ts";
 import dedent from "dedent";
 import chalk from "chalk";
 
@@ -86,21 +85,29 @@ if (values.fullBackup) {
 
 const { overall } = backupData;
 const { processedGames, totalGames } = overall;
-const processedBytes = prettyBytes(overall.processedBytes, { binary: true });
-const totalBytes = prettyBytes(overall.totalBytes, { binary: true });
+const processedBytes = prettyBytes(overall.processedBytes);
+const totalBytes = prettyBytes(overall.totalBytes);
 
 log("Backing up with Restic...");
 let gameIndex = 0;
 for (const [name, game] of Object.entries(backupData.games)) {
   if (game.decision == "Processed") {
     gameIndex++;
-    log(gray(`[${gameIndex} / ${processedGames}]`), name);
 
+    const fileSize = Object.values(game.files)
+      .map(({ bytes }) => bytes)
+      .reduce((a, b) => a + b, 0);
     const files = Object.entries(game.files)
       .filter(([_, data]) => !data.ignored)
+      .filter(([_, data]) => data.change != "Removed")
       .map(([file, _]) => file);
+    const fileCounter =
+      "[" +
+      `${gameIndex}`.padStart(`${processedGames}`.length, " ") +
+      ` / ${processedGames}]`;
 
     if (files.length) {
+      log(gray(fileCounter), name, gray(`(${prettyBytes(fileSize)})`));
       const args = ["--quiet", "--files-from-raw", "-"];
       const tags = [
         name.replaceAll(",", "_"),
@@ -113,7 +120,7 @@ for (const [name, game] of Object.entries(backupData.games)) {
 
       const stdin = new Response(files.join("\0") + "\0");
       await $`restic backup ${args} < ${stdin}`;
-    }
+    } else log(gray(fileCounter), red("SKIPPING"), name, gray("(0 B)"));
   }
 }
 log();
