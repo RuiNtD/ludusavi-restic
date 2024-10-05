@@ -4,6 +4,7 @@ import { BackupOutput, getLudusaviDir } from "./ludusavi.ts";
 import { isTruthy, prettyBytes } from "./helper.ts";
 import dedent from "dedent";
 import chalk from "chalk";
+import * as v from "valibot";
 
 const { log } = console;
 const { red, yellow, green, gray } = chalk;
@@ -59,7 +60,7 @@ try {
   // const ret = await $`ludusavi backup ${retArgs}`.json();
   const proc = Bun.spawn(["ludusavi", "backup", ...args]);
   const ret = await new Response(proc.stdout).json();
-  backupData = BackupOutput.parse(ret);
+  backupData = v.parse(BackupOutput, ret);
 } catch (e) {
   log(gray(e));
   process.exit(1);
