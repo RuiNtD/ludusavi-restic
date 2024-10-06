@@ -1,6 +1,7 @@
 import { $ } from "bun";
 import * as v from "valibot";
 import * as path from "path";
+import { isTruthy } from "./helper";
 
 const OperationStatus = v.object({
   processedBytes: v.number(),
@@ -47,4 +48,26 @@ export async function getLudusaviDir() {
   const backups = v.parse(BackupsOutput, apiRet);
   for (const game of Object.values(backups.games))
     if (game.backupPath) return path.dirname(game.backupPath);
+}
+
+export async function backupFiles(opts: {
+  files: string[];
+  tags?: string[];
+  quiet?: boolean;
+}) {
+  const args = ["--skip-if-unchanged", "--no-scan"];
+  args.push("--files-from-raw", "-");
+  args.push("--group-by", "host,tags");
+  args.push("--retry-lock", "5m");
+  if (opts.quiet) args.push("--quiet");
+
+  const tags = (opts.tags || [])
+    .map((s) => s.trim().replaceAll(",", "_"))
+    .filter(isTruthy);
+  for (const tag of tags) args.push("--tag", tag);
+
+  const stdin = new Response(opts.files.join("\0") + "\0");
+  let cmd = $`restic backup ${args} < ${stdin}`;
+  if (opts.quiet) cmd = cmd.quiet();
+  return await cmd;
 }

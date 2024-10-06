@@ -11,8 +11,10 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
+    "@std/cli": "npm:@jsr/std__cli",
     "chalk": "^5.3.0",
     "dedent": "^1.5.3",
+    "p-map": "^7.0.2",
     "pretty-bytes": "^6.1.1",
     "valibot": "^1.0.0-beta.0"
   }

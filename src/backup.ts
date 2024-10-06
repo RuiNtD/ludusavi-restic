@@ -1,32 +1,28 @@
-import { $ } from "bun";
-import { parseArgs } from "util";
-import { BackupOutput, getLudusaviDir } from "./ludusavi.ts";
-import { isTruthy, prettyBytes } from "./helper.ts";
+import { parseArgs } from "@std/cli/parse-args";
+import { backupFiles, BackupOutput, getLudusaviDir } from "./ludusavi.ts";
+import { prettyBytes } from "./helper.ts";
 import dedent from "dedent";
 import chalk from "chalk";
 import * as v from "valibot";
+import pMap from "p-map";
 
 const { log } = console;
 const { red, yellow, green, gray } = chalk;
 
-const { values, positionals } = parseArgs({
-  args: Bun.argv.slice(2),
-  options: {
-    help: { type: "boolean", short: "h" },
-    fullBackup: { type: "boolean", short: "f" },
-  },
-  allowPositionals: true,
+const argv = parseArgs(Bun.argv.slice(2), {
+  string: ["_"],
+  collect: ["_"],
+  boolean: ["help", "fullBackup"],
+  alias: { h: "help", f: "fullBackup" },
 });
 
-if (values.help) {
+if (argv.help) {
   log(dedent`
-    Usage:
-      $ ludusavi-restic [options] [Game...]
+    $ ludusavi-restic [options] [Game...]
 
-    Options:
-      -h, --help          Show this help
-      -f, --fullBackup
-        Do a full Ludusavi backup and back it up to Restic
+    -h, --help          Show this help
+    -f, --fullBackup
+      Do a full Ludusavi backup and back it up to Restic
   `);
   process.exit();
 }
@@ -51,8 +47,8 @@ if (!Bun.which("restic")) {
 
 let backupData: BackupOutput;
 try {
-  const args = [...positionals, "--force", "--api"];
-  if (values.fullBackup) log("Backing up with Ludusavi...");
+  const args = [...argv._, "--force", "--api"];
+  if (argv.fullBackup) log("Backing up with Ludusavi...");
   else {
     log("Scanning with Ludusavi...");
     args.push("--preview");
@@ -66,21 +62,18 @@ try {
   process.exit(1);
 }
 
-if (values.fullBackup) {
+if (argv.fullBackup) {
   const dir = await getLudusaviDir();
   if (!dir) log(yellow("Could not find Ludusavi directory"));
   else {
     log("Backing up", dir);
-    const args = [];
-    const tags = [
-      Bun.env.RESTIC_TAGS || "",
-      Bun.env.RESTIC_FULL_BACKUP_TAGS ?? "Ludusavi",
-    ]
-      .map((s) => s.trim())
-      .filter(isTruthy);
-    for (const tag of tags) args.push("--tag", tag);
-
-    await $`restic backup ${dir} ${args}`;
+    await backupFiles({
+      files: [dir],
+      tags: [
+        ...(Bun.env.RESTIC_TAGS || "").split(","),
+        ...(Bun.env.RESTIC_FULL_TAGS ?? "Ludusavi").split(","),
+      ],
+    });
   }
 }
 
@@ -91,39 +84,41 @@ const totalBytes = prettyBytes(overall.totalBytes);
 
 log("Backing up with Restic...");
 let gameIndex = 0;
-for (const [name, game] of Object.entries(backupData.games)) {
-  if (game.decision == "Processed") {
-    gameIndex++;
+// for (const [name, game] of Object.entries(backupData.games)) {
+await pMap(
+  Object.entries(backupData.games),
+  async ([name, game]) => {
+    if (game.decision == "Processed") {
+      const fileSize = Object.values(game.files)
+        .map(({ bytes }) => bytes)
+        .reduce((a, b) => a + b, 0);
+      const files = Object.entries(game.files)
+        .filter(([_, data]) => !data.ignored)
+        .filter(([_, data]) => data.change != "Removed")
+        .map(([file, _]) => file);
 
-    const fileSize = Object.values(game.files)
-      .map(({ bytes }) => bytes)
-      .reduce((a, b) => a + b, 0);
-    const files = Object.entries(game.files)
-      .filter(([_, data]) => !data.ignored)
-      .filter(([_, data]) => data.change != "Removed")
-      .map(([file, _]) => file);
-    const fileCounter =
-      "[" +
-      `${gameIndex}`.padStart(`${processedGames}`.length, " ") +
-      ` / ${processedGames}]`;
+      if (files.length)
+        await backupFiles({
+          files,
+          tags: [
+            name,
+            ...(Bun.env.RESTIC_TAGS || "").split(","),
+            ...(Bun.env.RESTIC_GAME_TAGS || "").split(","),
+          ],
+          quiet: true,
+        });
 
-    if (files.length) {
+      gameIndex++;
+      let fileCounter =
+        "[" +
+        `${gameIndex}`.padStart(`${processedGames}`.length, " ") +
+        ` / ${processedGames}]`;
+      if (!files.length) fileCounter += red(" SKIPPING");
       log(gray(fileCounter), name, gray(`(${prettyBytes(fileSize)})`));
-      const args = ["--quiet", "--files-from-raw", "-"];
-      const tags = [
-        name.replaceAll(",", "_"),
-        Bun.env.RESTIC_TAGS || "",
-        Bun.env.RESTIC_GAME_TAGS || "",
-      ]
-        .map((s) => s.trim())
-        .filter(isTruthy);
-      for (const tag of tags) args.push("--tag", tag);
-
-      const stdin = new Response(files.join("\0") + "\0");
-      await $`restic backup ${args} < ${stdin}`;
-    } else log(gray(fileCounter), red("SKIPPING"), name, gray("(0 B)"));
-  }
-}
+    }
+  },
+  { concurrency: 10 }
+);
 log();
 
 log(green("Done!"));
