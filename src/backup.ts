@@ -50,7 +50,7 @@ if (!restic) {
 
 let backupData: BackupOutput;
 try {
-  const args = [...argv._, "--force", "--api", "--dump-registry"];
+  const args = [...argv._, "--force", "--api" /*, "--dump-registry" */];
   if (argv.fullBackup) $.log("Backing up with Ludusavi...");
   else {
     $.log("Scanning with Ludusavi...");
