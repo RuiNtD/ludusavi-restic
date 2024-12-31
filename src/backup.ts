@@ -1,15 +1,18 @@
+#!/usr/bin/env -S deno run -A
+
 import { parseArgs } from "@std/cli/parse-args";
 import { backupFiles, BackupOutput, getLudusaviDir } from "./ludusavi.ts";
 import { prettyBytes } from "./helper.ts";
 import dedent from "dedent";
-import chalk from "chalk";
-import * as v from "valibot";
+import * as v from "@valibot/valibot";
 import pMap from "p-map";
+import * as process from "node:process";
+import $ from "@david/dax";
+import { red, yellow, green, gray } from "@std/fmt/colors";
+import Env from "./env.ts";
+import { ludusavi, restic } from "./exes.ts";
 
-const { log } = console;
-const { red, yellow, green, gray } = chalk;
-
-const argv = parseArgs(Bun.argv.slice(2), {
+const argv = parseArgs(Deno.args, {
   string: ["_"],
   collect: ["_"],
   boolean: ["help", "fullBackup"],
@@ -17,7 +20,7 @@ const argv = parseArgs(Bun.argv.slice(2), {
 });
 
 if (argv.help) {
-  log(dedent`
+  $.log(dedent`
     $ ludusavi-restic [options] [Game...]
 
     -h, --help          Show this help
@@ -27,52 +30,47 @@ if (argv.help) {
   process.exit();
 }
 
-if (!Bun.env.RESTIC_REPOSITORY) {
-  log(red("Environment not set up"));
-  log("Copy .env.example to .env and edit it");
+if (!Env.RESTIC_REPOSITORY) {
+  $.log(red("Environment not set up"));
+  $.log("Copy .env.example to .env and edit it");
   process.exit(1);
 }
 
-if (!Bun.which("ludusavi")) {
-  log(red("Could not find Ludusavi"));
-  log("https://github.com/mtkennerly/ludusavi");
+if (!ludusavi) {
+  $.log(red("Could not find Ludusavi"));
+  $.log("https://github.com/mtkennerly/ludusavi");
   process.exit(1);
 }
 
-if (!Bun.which("restic")) {
-  log(red("Could not find Restic"));
-  log("https://restic.net/");
+if (!restic) {
+  $.log(red("Could not find Restic"));
+  $.log("https://restic.net/");
   process.exit(1);
 }
 
 let backupData: BackupOutput;
 try {
-  const args = [...argv._, "--force", "--api"];
-  if (argv.fullBackup) log("Backing up with Ludusavi...");
+  const args = [...argv._, "--force", "--api", "--dump-registry"];
+  if (argv.fullBackup) $.log("Backing up with Ludusavi...");
   else {
-    log("Scanning with Ludusavi...");
+    $.log("Scanning with Ludusavi...");
     args.push("--preview");
   }
-  // const ret = await $`ludusavi backup ${retArgs}`.json();
-  const proc = Bun.spawn(["ludusavi", "backup", ...args]);
-  const ret = await new Response(proc.stdout).json();
+  const ret = await $`${ludusavi} backup ${args}`.json();
   backupData = v.parse(BackupOutput, ret);
 } catch (e) {
-  log(gray(e));
+  $.log(gray(`${e}`));
   process.exit(1);
 }
 
 if (argv.fullBackup) {
   const dir = await getLudusaviDir();
-  if (!dir) log(yellow("Could not find Ludusavi directory"));
+  if (!dir) $.log(yellow("Could not find Ludusavi directory"));
   else {
-    log("Backing up", dir);
+    $.log("Backing up", dir);
     await backupFiles({
       files: [dir],
-      tags: [
-        ...(Bun.env.RESTIC_TAGS || "").split(","),
-        ...(Bun.env.RESTIC_FULL_TAGS ?? "Ludusavi").split(","),
-      ],
+      tags: Env.RESTIC_FULL_TAGS.split(","),
     });
   }
 }
@@ -82,7 +80,7 @@ const { processedGames, totalGames } = overall;
 const processedBytes = prettyBytes(overall.processedBytes);
 const totalBytes = prettyBytes(overall.totalBytes);
 
-log("Backing up with Restic...");
+$.log("Backing up with Restic...");
 let gameIndex = 0;
 // for (const [name, game] of Object.entries(backupData.games)) {
 await pMap(
@@ -100,27 +98,23 @@ await pMap(
       if (files.length)
         await backupFiles({
           files,
-          tags: [
-            name,
-            ...(Bun.env.RESTIC_TAGS || "").split(","),
-            ...(Bun.env.RESTIC_GAME_TAGS || "").split(","),
-          ],
+          registry: game.dump?.registry,
+          tags: [name, ...Env.RESTIC_GAME_TAGS.split(",")],
           quiet: true,
         });
 
       gameIndex++;
-      let fileCounter =
+      const fileCounter =
         "[" +
         `${gameIndex}`.padStart(`${processedGames}`.length, " ") +
         ` / ${processedGames}]`;
-      if (!files.length) fileCounter += red(" SKIPPING");
-      log(gray(fileCounter), name, gray(`(${prettyBytes(fileSize)})`));
+      $.log(gray(fileCounter), name, gray(`(${prettyBytes(fileSize)})`));
     }
   },
   { concurrency: 10 }
 );
-log();
+$.log();
 
-log(green("Done!"));
-log(gray(`Games: ${processedGames} / ${totalGames}`));
-log(gray(`Size: ${processedBytes} / ${totalBytes}`));
+$.log(green("Done!"));
+$.log(gray(`Games: ${processedGames} / ${totalGames}`));
+$.log(gray(`Size: ${processedBytes} / ${totalBytes}`));

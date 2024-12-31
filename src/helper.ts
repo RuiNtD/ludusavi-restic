@@ -1,4 +1,4 @@
-import prettyBytesRaw from "pretty-bytes";
+import { format } from "@std/fmt/bytes";
 
 export function isTruthy<T>(
   data: T
@@ -7,5 +7,5 @@ export function isTruthy<T>(
 }
 
 export function prettyBytes(bytes: number) {
-  return prettyBytesRaw(bytes, { binary: true });
+  return format(bytes, { binary: true });
 }
