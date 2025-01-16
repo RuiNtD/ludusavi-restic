@@ -1,6 +1,5 @@
 import $, { type Path } from "@david/dax";
 import * as v from "@valibot/valibot";
-import * as path from "@std/path";
 import Env from "./env.ts";
 import { ludusavi, restic } from "./exes.ts";
 
@@ -49,13 +48,17 @@ export const BackupsOutput = v.object({
   ),
 });
 
+const ConfigOutput = v.object({
+  backup: v.object({
+    path: v.string(),
+  }),
+});
 export async function getLudusaviDir() {
   if (!ludusavi) return;
 
-  const apiRet = await $`${ludusavi} backups --api`.json();
-  const backups = v.parse(BackupsOutput, apiRet);
-  for (const game of Object.values(backups.games))
-    if (game.backupPath) return path.dirname(game.backupPath);
+  const apiRet = await $`${ludusavi} config show --api`.json();
+  const config = v.parse(ConfigOutput, apiRet);
+  return config.backup.path;
 }
 
 export async function backupFiles(opts: {
