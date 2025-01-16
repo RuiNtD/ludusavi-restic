@@ -2,7 +2,7 @@ import "@std/dotenv/load";
 import * as v from "@valibot/valibot";
 
 const EnvObj = v.looseObject({
-  RESTIC_REPOSITORY: v.string(),
+  RESTIC_REPOSITORY: v.optional(v.string()),
 
   RESTIC_TAGS: v.optional(v.string(), ""),
   RESTIC_FULL_TAGS: v.optional(v.string(), "Ludusavi"),
