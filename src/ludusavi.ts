@@ -2,6 +2,8 @@ import $, { type Path } from "@david/dax";
 import * as v from "@valibot/valibot";
 import Env from "./env.ts";
 import { ludusavi, restic } from "./exes.ts";
+import { assert } from "@std/assert";
+import pMemoize from "p-memoize";
 
 const OperationStatus = v.object({
   processedBytes: v.number(),
@@ -53,11 +55,16 @@ const ConfigOutput = v.object({
     path: v.string(),
   }),
 });
-export async function getLudusaviDir() {
-  if (!ludusavi) return;
+async function _getLudusaviConfig() {
+  assert(ludusavi);
 
   const apiRet = await $`${ludusavi} config show --api`.json();
-  const config = v.parse(ConfigOutput, apiRet);
+  return v.parse(ConfigOutput, apiRet);
+}
+export const getLudusaviConfig = pMemoize(_getLudusaviConfig);
+
+export async function getLudusaviDir() {
+  const config = await getLudusaviConfig();
   return config.backup.path;
 }
 
@@ -67,7 +74,7 @@ export async function backupFiles(opts: {
   tags?: string[];
   quiet?: boolean;
 }) {
-  if (!restic) return;
+  assert(restic);
 
   const args = ["--no-scan"];
   args.push("--group-by", "host,tags");
