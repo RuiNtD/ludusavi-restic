@@ -78,21 +78,21 @@ export async function backupFiles(opts: {
 
   const args = ["--no-scan"];
   args.push("--group-by", "host,tags");
-  args.push("--retry-lock", "5m");
+  // args.push("--retry-lock", "5m");
   if (opts.quiet) args.push("--quiet");
 
   args.push("--tag", Env.RESTIC_TAGS);
   const tags = (opts.tags || []).map((s) => s.replaceAll(",", "_"));
   args.push("--tag", tags.join(","));
 
+  if (Env.RCLONE_PATH) args.push("-o", `rclone.program=${Env.RCLONE_PATH}`);
+
   if (opts.files && opts.files.length) {
     const filesRaw = opts.files.join("\0") + "\0";
     const filesArgs = [...args];
     filesArgs.push("--tag", Env.RESTIC_FILES_TAGS);
     filesArgs.push("--files-from-raw", "-");
-    let cmd = $`${restic} backup ${filesArgs}`.stdinText(filesRaw);
-    if (opts.quiet) cmd = cmd.quiet();
-    await cmd;
+    await $`${restic} backup ${filesArgs}`.stdinText(filesRaw);
   }
 
   if (opts.registry) {
@@ -100,9 +100,7 @@ export async function backupFiles(opts: {
     regArgs.push("--tag", Env.RESTIC_REG_TAGS);
     regArgs.push("--stdin");
     regArgs.push("--stdin-filename", "registry.reg");
-    let cmd = $`${restic} backup ${regArgs}`.stdinText(opts.registry);
-    if (opts.quiet) cmd = cmd.quiet();
-    await cmd;
+    await $`${restic} backup ${regArgs}`.stdinText(opts.registry);
   }
 }
 

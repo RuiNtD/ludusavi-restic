@@ -8,10 +8,11 @@
     "jsr:@std/assert@0.221": "0.221.0",
     "jsr:@std/assert@^1.0.10": "1.0.10",
     "jsr:@std/bytes@0.221": "0.221.0",
-    "jsr:@std/cli@^1.0.8": "1.0.8",
+    "jsr:@std/cli@^1.0.10": "1.0.10",
     "jsr:@std/dotenv@~0.225.3": "0.225.3",
-    "jsr:@std/fmt@1": "1.0.3",
+    "jsr:@std/fmt@1": "1.0.4",
     "jsr:@std/fmt@^1.0.3": "1.0.3",
+    "jsr:@std/fmt@^1.0.4": "1.0.4",
     "jsr:@std/fs@1": "1.0.5",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@std/io@0.221": "0.221.0",
@@ -21,7 +22,6 @@
     "jsr:@std/streams@0.221": "0.221.0",
     "jsr:@valibot/valibot@~0.42.1": "0.42.1",
     "npm:dedent@^1.5.3": "1.5.3",
-    "npm:p-map@^7.0.3": "7.0.3",
     "npm:p-memoize@^7.1.1": "7.1.1"
   },
   "jsr": {
@@ -59,14 +59,17 @@
     "@std/bytes@0.221.0": {
       "integrity": "64a047011cf833890a4a2ab7293ac55a1b4f5a050624ebc6a0159c357de91966"
     },
-    "@std/cli@1.0.8": {
-      "integrity": "3762d8dc9a373715c08d871c38d45e637b25266f013a1d0bbe560bca409de94e"
+    "@std/cli@1.0.10": {
+      "integrity": "d047f6f4954a5c2827fe0963765ddd3d8b6cc7b7518682842645b95f571539dc"
     },
     "@std/dotenv@0.225.3": {
       "integrity": "a95e5b812c27b0854c52acbae215856d9cce9d4bbf774d938c51d212711e8d4a"
     },
     "@std/fmt@1.0.3": {
       "integrity": "97765c16aa32245ff4e2204ecf7d8562496a3cb8592340a80e7e554e0bb9149f"
+    },
+    "@std/fmt@1.0.4": {
+      "integrity": "e14fe5bedee26f80877e6705a97a79c7eed599e81bb1669127ef9e8bc1e29a74"
     },
     "@std/fs@1.0.5": {
       "integrity": "41806ad6823d0b5f275f9849a2640d87e4ef67c51ee1b8fb02426f55e02fd44e",
@@ -104,9 +107,6 @@
     "mimic-fn@4.0.0": {
       "integrity": "sha512-vqiC06CuhBTUdZH+RYl8sFrL096vA45Ok5ISO6sE/Mr1jRbGH4Csnhi8f3wKVl7x8mO4Au7Ir9D3Oyv1VYMFJw=="
     },
-    "p-map@7.0.3": {
-      "integrity": "sha512-VkndIv2fIB99swvQoA65bm+fsmt6UNdGeIB0oxBs+WhAhdh08QA04JXpI7rbB9r08/nkbysKoya9rtDERYOYMA=="
-    },
     "p-memoize@7.1.1": {
       "integrity": "sha512-DZ/bONJILHkQ721hSr/E9wMz5Am/OTJ9P6LhLFo2Tu+jL8044tgc9LwHO8g4PiaYePnlVVRAJcKmgy8J9MVFrA==",
       "dependencies": [
@@ -122,13 +122,11 @@
     "dependencies": [
       "jsr:@david/dax@0.42",
       "jsr:@std/assert@^1.0.10",
-      "jsr:@std/cli@^1.0.8",
+      "jsr:@std/cli@^1.0.10",
       "jsr:@std/dotenv@~0.225.3",
-      "jsr:@std/fmt@^1.0.3",
-      "jsr:@std/path@^1.0.8",
+      "jsr:@std/fmt@^1.0.4",
       "jsr:@valibot/valibot@~0.42.1",
       "npm:dedent@^1.5.3",
-      "npm:p-map@^7.0.3",
       "npm:p-memoize@^7.1.1"
     ]
   }

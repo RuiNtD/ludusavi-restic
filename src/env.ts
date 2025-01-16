@@ -1,7 +1,7 @@
 import "@std/dotenv/load";
 import * as v from "@valibot/valibot";
 
-const EnvObj = v.looseObject({
+const EnvScheme = v.looseObject({
   RESTIC_REPOSITORY: v.optional(v.string()),
 
   RESTIC_TAGS: v.optional(v.string(), ""),
@@ -13,8 +13,9 @@ const EnvObj = v.looseObject({
 
   LUDUSAVI_PATH: v.optional(v.string()),
   RESTIC_PATH: v.optional(v.string()),
+  RCLONE_PATH: v.optional(v.string()),
 });
-const Env = v.parse(EnvObj, Deno.env.toObject());
+const Env = v.parse(EnvScheme, Deno.env.toObject());
 export default Env;
 
 if (import.meta.main) {
