@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- [Bun](https://bun.sh/)
+- [Deno](https://deno.com/)
 - [Ludusavi](https://github.com/mtkennerly/ludusavi)
 - [Restic](https://restic.net/)
 
